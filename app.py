@@ -17,9 +17,10 @@ config = {
 def index():
     return "Discord Auth Bot is running!"
 
-@app.route('/auth/discord/callback/<endpoint>')
-def callback(endpoint):
+@app.route('/auth/discord/callback')
+def callback():
     code = request.args.get('code')
+    state = request.args.get('state')
     
     if not code:
         return """
@@ -35,7 +36,7 @@ def callback(endpoint):
             'client_secret': config['client_secret'],
             'grant_type': 'authorization_code',
             'code': code,
-            'redirect_uri': f"https://web-ji8b.onrender.com/auth/discord/callback/{endpoint}",
+            'redirect_uri': "https://web-ji8b.onrender.com/auth/discord/callback",
             'scope': config['scope']
         }
         
