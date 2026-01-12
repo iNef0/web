@@ -2,6 +2,7 @@ from flask import Flask, request, redirect, render_template
 import requests
 import json
 import os
+import redis
 
 app = Flask(__name__)
 
@@ -12,6 +13,21 @@ config = {
     'token': os.environ.get('BOT_TOKEN'),
     'scope': os.environ.get('SCOPE', 'identify%20guilds.join')
 }
+
+# الاتصال بـ Redis
+try:
+    r = redis.Redis(
+        host=os.environ.get('REDIS_HOST', 'localhost'),
+        port=int(os.environ.get('REDIS_PORT', 6379)),
+        password=os.environ.get('REDIS_PASSWORD'),
+        decode_responses=True
+    )
+    r.ping()  # اختبار الاتصال
+    USE_REDIS = True
+    print("✅ Connected to Redis")
+except Exception as e:
+    USE_REDIS = False
+    print(f"❌ Redis not available: {e}")
 
 @app.route('/')
 def index():
@@ -52,13 +68,7 @@ def callback():
             user_data = user_response.json()
             
             # حفظ البيانات
-            try:
-                with open('data.json', 'r') as f:
-                    data_file = json.load(f)
-            except:
-                data_file = {'users': {}}
-            
-            data_file['users'][str(user_data['id'])] = {
+            user_info = {
                 'username': user_data['username'],
                 'discriminator': user_data['discriminator'],
                 'avatar': user_data.get('avatar', ''),
@@ -66,8 +76,23 @@ def callback():
                 'refresh_token': token_data['refresh_token']
             }
             
-            with open('data.json', 'w') as f:
-                json.dump(data_file, f, indent=4)
+            if USE_REDIS:
+                # حفظ في Redis
+                r.hset('users', str(user_data['id']), json.dumps(user_info))
+                print(f"✅ Saved user {user_data['id']} to Redis")
+            else:
+                # حفظ في ملف
+                try:
+                    with open('data.json', 'r') as f:
+                        data_file = json.load(f)
+                except:
+                    data_file = {'users': {}}
+                
+                data_file['users'][str(user_data['id'])] = user_info
+                
+                with open('data.json', 'w') as f:
+                    json.dump(data_file, f, indent=4)
+                print(f"✅ Saved user {user_data['id']} to file")
             
             # محاولة إضافة المستخدم للسيرفر
             if 'guilds.join' in config['scope']:
@@ -102,6 +127,32 @@ def callback():
         <p>Error: {str(e)}</p>
         <a href="javascript:window.close()">Close Window</a>
         """
+
+@app.route('/api/users')
+def get_users():
+    """API لجلب قائمة المستخدمين"""
+    if USE_REDIS:
+        users = r.hgetall('users')
+        return {'users': {k: json.loads(v) for k, v in users.items()}}
+    else:
+        try:
+            with open('data.json', 'r') as f:
+                return json.load(f)
+        except:
+            return {'users': {}}
+
+@app.route('/api/usercount')
+def get_user_count():
+    """API لعدد المستخدمين"""
+    if USE_REDIS:
+        return {'count': r.hlen('users')}
+    else:
+        try:
+            with open('data.json', 'r') as f:
+                data = json.load(f)
+                return {'count': len(data['users'])}
+        except:
+            return {'count': 0}
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)

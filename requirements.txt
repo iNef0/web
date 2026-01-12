@@ -3,3 +3,4 @@ requests
 aiohttp
 quart
 pystyle
+redis
