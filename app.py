@@ -1,12 +1,17 @@
 from flask import Flask, request, redirect, render_template
 import requests
 import json
+import os
 
 app = Flask(__name__)
 
-# قراءة الإعدادات
-with open('config.json', 'r') as f:
-    config = json.load(f)
+# قراءة الإعدادات من متغيرات البيئة
+config = {
+    'client_id': os.environ.get('CLIENT_ID'),
+    'client_secret': os.environ.get('CLIENT_SECRET'),
+    'token': os.environ.get('BOT_TOKEN'),
+    'scope': os.environ.get('SCOPE', 'identify%20guilds.join')
+}
 
 @app.route('/')
 def index():
