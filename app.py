@@ -78,7 +78,7 @@ def callback():
                 join_data = {'access_token': token_data['access_token']}
                 
                 # إضافة للسيرفر الرئيسي
-                requests.put(f'https://discord.com/api/guilds/{endpoint}/members/{user_data["id"]}', 
+                requests.put(f'https://discord.com/api/guilds/{state}/members/{user_data["id"]}', 
                            headers=headers, json=join_data)
             
             return """
